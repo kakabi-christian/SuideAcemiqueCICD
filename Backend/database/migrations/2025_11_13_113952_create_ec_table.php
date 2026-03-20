@@ -24,7 +24,7 @@ return new class extends Migration
             $table->string('code_ue', 20);
             $table->foreign('code_ue')
                   ->references('code_ue')
-                  ->on('ue')
+                  ->on('ues')
                   ->onDelete('cascade');
 
             $table->timestamps();
