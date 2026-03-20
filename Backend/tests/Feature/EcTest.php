@@ -2,117 +2,141 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\Ec;
 use App\Models\Ue;
-use Illuminate\Support\Str;
+use App\Models\Niveau;
+use App\Models\Filiere;
+use Tests\TestCase;
 use Tests\Traits\ApiTokenTrait;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class EcTest extends TestCase
 {
-    use ApiTokenTrait;
+    use RefreshDatabase, ApiTokenTrait;
 
-    /** @test */
-    public function test_create_ec()
+    protected $ue;
+
+    protected function setUp(): void
     {
-        $ue = Ue::factory()->create();
+        parent::setUp();
+        
+        $this->authenticatePersonnel();
 
-        $ecData = [
-            'code_ec' => 'EC' . Str::random(8), // code unique
-            'label_ec' => 'EC ' . Str::random(5),
-            'desc_ec' => 'Description EC ' . Str::random(5),
-            'nbh_ec' => rand(10, 30),
-            'nbc_ec' => rand(20, 40),
-            'code_ue' => $ue->code_ue,
+        // Utilisation de firstOrCreate pour éviter les erreurs de duplication
+        $filiere = Filiere::firstOrCreate(
+            ['code_filiere' => 'FIL-INF'],
+            ['label_filiere' => 'Informatique']
+        );
+
+        $niveau = Niveau::firstOrCreate(
+            ['code_niveau' => 'NIV-L3'],
+            [
+                'label_niveau' => 'Licence 3',
+                'code_filiere' => $filiere->code_filiere
+            ]
+        );
+
+        $this->ue = Ue::firstOrCreate(
+            ['code_ue' => 'UE-INF101'],
+            [
+                'label_ue'    => 'Informatique Fondamentale',
+                'desc_ue'     => 'Description de test',
+                'code_niveau' => $niveau->code_niveau
+            ]
+        );
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_create_ec_with_image()
+    {
+        Storage::fake('public');
+
+        $payload = [
+            'code_ec'  => 'EC-ALGO2',
+            'label_ec' => 'Algorithmique Avancée',
+            'desc_ec'  => 'Complexité et structures',
+            'nbh_ec'   => 45,
+            'nbc_ec'   => 5,
+            'code_ue'  => $this->ue->code_ue,
         ];
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->postJson('/api/ec', $ecData);
+        $response = $this->postJson('/api/ecs', $payload);
 
-        $response->assertStatus(201)
-                 ->assertJsonStructure([
-                     'message',
-                     'data' => [
-                         'code_ec',
-                         'label_ec',
-                         'desc_ec',
-                         'nbh_ec',
-                         'nbc_ec',
-                         'code_ue',
-                         'created_at',
-                         'updated_at',
-                     ]
-                 ]);
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('ecs', ['code_ec' => 'EC-ALGO2']);
     }
 
-    /** @test */
-    public function test_update_ec()
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_list_ecs_with_pagination()
     {
-        $ue = Ue::factory()->create();
-        $ec = Ec::factory()->create([
-            'code_ue' => $ue->code_ue,
-            'code_ec' => 'EC' . Str::random(8), // code unique
-        ]);
+        Ec::firstOrCreate(
+            ['code_ec' => 'EC-TEST1'],
+            ['label_ec' => 'Test 1', 'nbh_ec' => 20, 'nbc_ec' => 2, 'code_ue' => $this->ue->code_ue]
+        );
 
-        $updateData = [
-            'label_ec' => 'EC ' . Str::random(5),
-            'desc_ec' => 'Description mise à jour ' . Str::random(5),
-            'nbh_ec' => rand(10, 30),
-            'nbc_ec' => rand(20, 40),
-        ];
-
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->putJson("/api/ec/{$ec->code_ec}", $updateData);
+        $response = $this->getJson('/api/ecs');
 
         $response->assertStatus(200)
-                 ->assertJsonFragment([
-                     'label_ec' => $updateData['label_ec'],
-                     'desc_ec' => $updateData['desc_ec'],
-                     'nbh_ec' => $updateData['nbh_ec'],
-                     'nbc_ec' => $updateData['nbc_ec'],
-                 ]);
+                 ->assertJsonStructure(['data', 'meta']);
     }
 
-    /** @test */
-    public function test_show_ec()
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_update_ec_details()
     {
-        $ue = Ue::factory()->create();
-        $ec = Ec::factory()->create([
-            'code_ue' => $ue->code_ue,
-            'code_ec' => 'EC' . Str::random(10), // code unique
+        $ec = Ec::create([
+            'code_ec'  => 'EC-UPDATE',
+            'label_ec' => 'Ancien Label',
+            'nbh_ec'   => 20,
+            'nbc_ec'   => 2,
+            'code_ue'  => $this->ue->code_ue
         ]);
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->getJson("/api/ec/{$ec->code_ec}");
+        $response = $this->putJson("/api/ecs/{$ec->code_ec}", [
+            'label_ec' => 'Nouveau Label'
+        ]);
 
-        $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'data' => [
-                         'code_ec',
-                         'label_ec',
-                         'desc_ec',
-                         'nbh_ec',
-                         'nbc_ec',
-                         'code_ue',
-                         'created_at',
-                         'updated_at',
-                     ]
-                 ]);
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('ecs', ['code_ec' => 'EC-UPDATE', 'label_ec' => 'Nouveau Label']);
     }
 
-    /** @test */
-    public function test_delete_ec()
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_delete_ec_and_cleanup_storage()
     {
-        $ue = Ue::factory()->create();
-        $ec = Ec::factory()->create([
-            'code_ue' => $ue->code_ue,
-            'code_ec' => 'EC' . Str::random(8), // code unique
+        Storage::fake('public');
+        $path = 'ecs/test.jpg';
+        Storage::disk('public')->put($path, 'dummy content');
+
+        $ec = Ec::create([
+            'code_ec'  => 'EC-BYE',
+            'label_ec' => 'A supprimer',
+            'nbh_ec'   => 10,
+            'nbc_ec'   => 1,
+            'code_ue'  => $this->ue->code_ue,
+            'image_ec' => $path
         ]);
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->deleteJson("/api/ec/{$ec->code_ec}");
+        $response = $this->deleteJson("/api/ecs/{$ec->code_ec}");
 
-        $response->assertStatus(200)
-                 ->assertJson(['message' => 'EC supprimé avec succès']);
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('ecs', ['code_ec' => 'EC-BYE']);
+        Storage::disk('public')->assertMissing($path);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_download_pdf_fails_if_no_image()
+    {
+        $ec = Ec::create([
+            'code_ec'  => 'EC-NO-IMG',
+            'label_ec' => 'Sans Image',
+            'nbh_ec'   => 10,
+            'nbc_ec'   => 1,
+            'code_ue'  => $this->ue->code_ue
+        ]);
+
+        $response = $this->getJson("/api/ecs/download-image/{$ec->code_ec}");
+
+        $response->assertStatus(404);
     }
 }

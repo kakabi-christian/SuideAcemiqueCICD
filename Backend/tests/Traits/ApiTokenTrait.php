@@ -2,18 +2,31 @@
 
 namespace Tests\Traits;
 
+use App\Models\Personnel;
+use Laravel\Sanctum\Sanctum;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
 trait ApiTokenTrait
 {
-    protected function getApiToken(): string
+    protected function authenticatePersonnel(): Personnel
     {
-        return '5|MimisxjSGNdVVKTgYj5ANaQBfCFMIF5kHaf6L5eD6be86a34';
-    }
+        // On nettoie
+        Personnel::where('login_pers', 'test_admin')->delete();
 
-    protected function withApiTokenHeaders(array $additionalHeaders = []): array
-    {
-        return array_merge($additionalHeaders, [
-            'Authorization' => 'Bearer ' . $this->getApiToken(),
+        $personnel = Personnel::create([
+            'id'         => (string) Str::uuid(),
+            'code_pers'  => 'Pers-' . Str::random(5), // Champ obligatoire
+            'nom_pers'   => 'Admin Test',
+            'sexe_pers'  => 'Masculin',            // Champ obligatoire (enum)
+            'phone_pers' => '677000000',           // Champ obligatoire
+            'login_pers' => 'test_admin',
+            'pwd_pers'   => Hash::make('password123'),
+            'type_pers'  => 'RESPONSABLE ACADEMIQUE' // Champ obligatoire (enum)
         ]);
+
+        Sanctum::actingAs($personnel, [], 'sanctum');
+
+        return $personnel;
     }
 }
-//tests/Traits/ApiTokenTrait.php

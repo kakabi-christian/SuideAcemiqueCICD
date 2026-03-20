@@ -17,25 +17,24 @@ Route::apiResource("personnels", PersonnelController::class);
 
 
 // --- Routes Sécurisées (Sanctum) ---
+// --- Routes Sécurisées (Sanctum) ---
 Route::middleware('auth:sanctum')->group(function () {
     
-    // Auth & Logout
     Route::post('/logout', [AuthController::class, 'logout']);
     
-    // Ressources API
-    // Route::apiResource("personnels", PersonnelController::class);
+    // Ressources API (Harmonisées au pluriel)
     Route::apiResource("enseignes", EnseigneController::class);
     Route::apiResource("niveaux", NiveauController::class);
-    Route::apiResource("ec", EcController::class);
-    Route::apiResource("Ue", UeController::class);
+    Route::apiResource("ecs", EcController::class); // Changé de 'ec' à 'ecs'
+    Route::apiResource("ues", UeController::class); // Changé de 'Ue' à 'ues'
     Route::apiResource("salles", SalleController::class);
-    // ✅ Routes d'exportation (à mettre avant le apiResource)
+    Route::apiResource("programmations", ProgrammationController::class);
+
+    // Routes d'exportation
     Route::get('filieres/export/pdf', [FiliereController::class, 'exportPdf']);
     Route::get('filieres/export/excel', [FiliereController::class, 'exportExcel']);
-    Route::apiResource("filieres", FiliereController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+    Route::apiResource("filieres", FiliereController::class);
 
-    // --- Routes spécifiques pour les Exports PDF ---
-        
-    // ✅ Nouvelle route pour télécharger le PDF de l'IMAGE de l'EC
-    Route::get('/ec/download-image/{id}', [EcController::class, 'downloadImagePdf']);
+    // Route spécifique pour l'image (Utilisation du pluriel ecs pour la cohérence)
+    Route::get('/ecs/download-image/{id}', [EcController::class, 'downloadImagePdf']);
 });

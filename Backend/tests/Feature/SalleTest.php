@@ -2,99 +2,102 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\Salle;
-use Tests\Traits\ApiTokenTrait;
+use Tests\TestCase;
+use Tests\Traits\ApiTokenTrait; // On importe le fichier du trait
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class SalleTest extends TestCase
 {
-    use ApiTokenTrait;
+    // On utilise le nom exact du trait défini dans ApiTokenTrait.php
+    use RefreshDatabase, ApiTokenTrait; 
 
-    #[\PHPUnit\Framework\Attributes\Test]
-    public function create_salle()
+    protected function setUp(): void
     {
-        $salle = Salle::factory()->make([
-            'contenance' => fake()->numberBetween(20, 100), // valeur valide pour validation
-        ]);
-
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->postJson('/api/salles', [
-                             'num_salle' => $salle->num_salle,
-                             'contenance' => $salle->contenance,
-                             'status' => $salle->status,
-                         ]);
-
-        $response->assertStatus(201)
-                 ->assertJsonStructure([
-                     'message',
-                     'data' => [
-                         'num_salle',
-                         'contenance',
-                         'status',
-                         'created_at',
-                         'updated_at',
-                     ]
-                 ]);
+        parent::setUp();
+        // Cette méthode est définie dans ton ApiTokenTrait
+        $this->authenticatePersonnel();
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function update_salle()
+    public function test_can_create_salle()
     {
-        $salle = Salle::factory()->create([
-            'contenance' => fake()->numberBetween(20, 100),
-            'status' => 'Disponible',
-        ]);
-
-        $updateData = [
-            'contenance' => $salle->contenance + 10,
-            'status' => 'Indisponible',
+        $payload = [
+            'num_salle' => 'SALLE-101',
+            'contenance' => 50,
+            'status' => 'Disponible'
         ];
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->putJson("/api/salles/{$salle->num_salle}", $updateData);
+        $response = $this->postJson('/api/salles', $payload);
 
-        $response->assertStatus(200)
-                 ->assertJsonFragment([
-                     'contenance' => $updateData['contenance'],
-                     'status' => $updateData['status'],
-                 ]);
+        $response->assertStatus(201)
+                 ->assertJsonFragment(['message' => 'Salle créée avec succès']);
+
+        $this->assertDatabaseHas('salles', ['num_salle' => 'SALLE-101']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function show_salle()
+    public function test_create_salle_fails_if_contenance_too_low()
     {
-        $salle = Salle::factory()->create([
-            'contenance' => fake()->numberBetween(20, 100),
-            'status' => 'Disponible',
-        ]);
+        $payload = [
+            'num_salle' => 'SALLE-ERR',
+            'contenance' => 10, // Le minimum est 20 dans ton contrôleur
+            'status' => 'Disponible'
+        ];
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->getJson("/api/salles/{$salle->num_salle}");
+        $response = $this->postJson('/api/salles', $payload);
 
-        $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'data' => [
-                         'num_salle',
-                         'contenance',
-                         'status',
-                         'created_at',
-                         'updated_at',
-                     ]
-                 ]);
+        $response->assertStatus(422)
+                 ->assertJsonValidationErrors(['contenance']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
-    public function delete_salle()
+    public function test_can_show_specific_salle()
     {
-        $salle = Salle::factory()->create([
-            'contenance' => fake()->numberBetween(20, 100),
-            'status' => 'Disponible',
+        $salle = Salle::create([
+            'num_salle' => 'SALLE-202',
+            'contenance' => 100,
+            'status' => 'Disponible'
         ]);
 
-        $response = $this->withHeaders($this->withApiTokenHeaders())
-                         ->deleteJson("/api/salles/{$salle->num_salle}");
+        $response = $this->getJson("/api/salles/{$salle->num_salle}");
 
         $response->assertStatus(200)
-                 ->assertJson(['message' => 'Salle supprimée avec succès']);
+                 ->assertJsonPath('data.num_salle', 'SALLE-202');
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_update_salle_status()
+    {
+        $salle = Salle::create([
+            'num_salle' => 'SALLE-303',
+            'contenance' => 25,
+            'status' => 'Disponible'
+        ]);
+
+        $response = $this->putJson("/api/salles/{$salle->num_salle}", [
+            'status' => 'Indisponible'
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('salles', [
+            'num_salle' => 'SALLE-303',
+            'status' => 'Indisponible'
+        ]);
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function test_can_delete_salle()
+    {
+        $salle = Salle::create([
+            'num_salle' => 'SALLE-OLD',
+            'contenance' => 30,
+            'status' => 'Disponible'
+        ]);
+
+        $response = $this->deleteJson("/api/salles/{$salle->num_salle}");
+
+        $response->assertStatus(200);
+        $this->assertDatabaseMissing('salles', ['num_salle' => 'SALLE-OLD']);
     }
 }

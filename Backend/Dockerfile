@@ -36,7 +36,7 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev --no-script
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
 # 8. Exposition du port
-EXPOSE 8000
+EXPOSE 8001
 
 # 9. Commande de lancement
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+CMD php artisan serve --host=0.0.0.0 --port=${PORT:-8001}
