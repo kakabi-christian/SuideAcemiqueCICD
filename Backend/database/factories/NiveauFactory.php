@@ -21,7 +21,7 @@ class NiveauFactory extends Factory
         'label_niveau' => $this->faker->words(1, true),
         'desc_niveau' => $this->faker->words(1, true),
         // 🔥 Récupère un code existant dans la table filiere
-        'code_filiere' => \App\Models\Filiere::inRandomOrder()->value('code_filiere'),
+            'code_filiere' => \App\Models\Filiere::factory()->create()->code_filiere,
     ];
 }
 

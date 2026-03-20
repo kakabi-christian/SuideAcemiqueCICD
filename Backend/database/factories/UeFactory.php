@@ -20,7 +20,7 @@ class UeFactory extends Factory
             'code_ue' => $this->faker->unique()->bothify('UE###'),
             'label_ue' => $this->faker->words(1,true),
             'desc_ue' => $this->faker->sentence(),
-            'code_niveau' => \App\Models\Niveau::inRandomOrder()->value('code_niveau'),
+            'code_niveau'  => \App\Models\Niveau::factory()->create()->code_niveau,
         ];
     }
 }
