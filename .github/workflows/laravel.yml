@@ -13,7 +13,6 @@ jobs:
   laravel-tests:
     runs-on: ubuntu-latest
 
-    # Définition du service MySQL
     services:
       mysql:
         image: mysql:8.2
@@ -27,13 +26,22 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Nécessaire pour un scan complet des secrets
 
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.2'
-        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql # Ajout de pdo_mysql
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql
         coverage: none
+
+    # --- ÉTAPE DE SÉCURITÉ 1 : SCAN DES SECRETS ---
+    - name: Secret Scanning (Gitleaks)
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true # Permet de ne pas bloquer si tu as des faux positifs au début
 
     - name: Copy .env
       working-directory: ./Backend
@@ -42,6 +50,11 @@ jobs:
     - name: Install Dependencies
       working-directory: ./Backend
       run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+    # --- ÉTAPE DE SÉCURITÉ 2 : SCAN DES DÉPENDANCES (SCA) ---
+    - name: Security Check Dependencies (Composer Audit)
+      working-directory: ./Backend
+      run: composer audit # Vérifie si tes packages ont des failles connues
 
     - name: Generate key
       working-directory: ./Backend
