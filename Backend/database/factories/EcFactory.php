@@ -22,7 +22,7 @@ class EcFactory extends Factory
             'desc_ec' => $this->faker->sentence(),
             'nbh_ec' => $this->faker->randomDigit(),
             'nbc_ec' => $this->faker->randomDigit(),
-            'code_ue' => \App\Models\Ue::inRandomOrder()->value('code_ue'),
+            'code_ue'  => \App\Models\Ue::factory()->create()->code_ue,
         ];
     }
 }
