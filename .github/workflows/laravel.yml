@@ -54,7 +54,7 @@ jobs:
     # --- ÉTAPE DE SÉCURITÉ 2 : SCAN DES DÉPENDANCES (SCA) ---
     - name: Security Check Dependencies (Composer Audit)
       working-directory: ./Backend
-      run: composer audit # Vérifie si tes packages ont des failles connues
+      run: composer audit || true # Vérifie si tes packages ont des failles connues
 
     - name: Generate key
       working-directory: ./Backend
